@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notas</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --card: #ffffff;
+    --text: #1f2328;
+    --muted: #6b7280;
+    --line: #e3e6ea;
+    --head: #2f5d8a;
+    --head-text: #ffffff;
+    --name-bg: #eef3f9;
+    --empty: #fdebd8;
+    --empty-text: #b45309;
+    --low: #c2410c;
+    --ok: #15803d;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: 17px; }
+
+  header { padding: 16px 16px 8px; }
+  h1 { font-size: 1.3rem; margin: 0 0 4px; }
+  .sub { font-size: .85rem; color: var(--muted); }
+
+  .tools { position: sticky; top: 0; z-index: 5; background: var(--bg);
+    display: flex; gap: 8px; padding: 8px 16px 10px; }
+  #buscar { flex: 1; min-width: 0; font-size: 1.05rem; padding: 12px 14px;
+    border: 1px solid var(--line); border-radius: 12px; background: var(--card); }
+  button { font: inherit; cursor: pointer; }
+  .btn { font-size: .95rem; padding: 12px 14px; border: 0; border-radius: 12px;
+    background: var(--head); color: var(--head-text); white-space: nowrap; }
+  .vista { display: flex; justify-content: flex-end; padding: 0 16px 8px; }
+  .link { background: none; border: 0; color: var(--head); font-size: .95rem;
+    font-weight: 600; padding: 8px 4px; text-decoration: underline; }
+
+  .estado { padding: 28px 16px; text-align: center; color: var(--muted); }
+
+  /* ---------- Vista lista + tarjetas ---------- */
+  #lista { list-style: none; margin: 0; padding: 0 12px 24px; }
+  #lista li { background: var(--card); border: 1px solid var(--line);
+    border-radius: 14px; margin-bottom: 8px; overflow: hidden; }
+  .fila { display: flex; align-items: center; gap: 10px; width: 100%;
+    min-height: 56px; padding: 12px 14px; background: none; border: 0;
+    text-align: left; color: var(--text); }
+  .fila .nom { flex: 1; font-size: 1.05rem; font-weight: 600; line-height: 1.25; }
+  .fila .res { font-size: .85rem; color: var(--muted); white-space: nowrap; }
+  .fila .flecha { color: var(--muted); transition: transform .2s; font-size: .9rem; }
+  .fila[aria-expanded="true"] .flecha { transform: rotate(180deg); }
+  .fila[aria-expanded="true"] { background: var(--head); color: var(--head-text); }
+  .fila[aria-expanded="true"] .res, .fila[aria-expanded="true"] .flecha { color: #dbe6f2; }
+  #lista li.abierto { border: 2px solid var(--head); box-shadow: 0 4px 14px rgba(47,93,138,.18); }
+
+  .detalle { padding: 12px 12px 14px; border-top: 1px solid var(--line); }
+  .grilla { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .nota { border: 1px solid var(--line); border-radius: 10px; padding: 8px 4px;
+    text-align: center; background: #fafbfc; }
+  .nota .et { display: block; font-size: .8rem; color: var(--muted); }
+  .nota .v { display: block; font-size: 1.4rem; font-weight: 700; margin-top: 2px; }
+  .nota.vacio { background: var(--empty); border-color: #f6d3ae; }
+  .nota.vacio .v { color: var(--empty-text); }
+  .nota.bajo .v { color: var(--low); }
+  .promedio { display: flex; align-items: center; gap: 14px;
+    border: 2px solid #e0b100; background: #fff3c4; border-radius: 12px;
+    padding: 10px 14px; margin-bottom: 12px; }
+  .promedio .v { order: -1; min-width: 64px; text-align: center; font-size: 1.8rem;
+    font-weight: 800; color: #1f2328; background: #ffffff; border: 1px solid #e0b100;
+    border-radius: 10px; padding: 4px 10px; }
+  .promedio .et { font-weight: 700; font-size: 1.05rem; color: #6b4e00; }
+  .promedio.bajo .v { color: var(--low); }
+  .promedio.vacio { background: var(--empty); border-color: #f0b27a; }
+  .promedio.vacio .v { color: var(--empty-text); }
+  .pie { margin-top: 10px; font-size: .95rem; color: var(--muted); text-align: center; }
+  .pie b { color: var(--text); }
+
+  /* ---------- Vista tabla ---------- */
+  .wrap { margin: 0 8px 16px; background: var(--card); border: 1px solid var(--line);
+    border-radius: 12px; overflow: auto; max-height: calc(100vh - 150px);
+    -webkit-overflow-scrolling: touch; }
+  table { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 1rem; }
+  th, td { padding: 9px 8px; border-bottom: 1px solid var(--line); text-align: center;
+    white-space: nowrap; min-width: 46px; }
+  thead th { position: sticky; top: 0; z-index: 2; background: var(--head);
+    color: var(--head-text); font-weight: 600; font-size: .9rem; }
+  th.nombre, td.nombre { position: sticky; left: 0; text-align: left; z-index: 1;
+    width: 44vw; min-width: 44vw; max-width: 44vw; white-space: normal;
+    line-height: 1.2; padding: 8px 10px; }
+  td.nombre { background: var(--name-bg); font-weight: 600; font-size: .95rem;
+    border-right: 1px solid var(--line); overflow-wrap: anywhere; }
+  thead th.nombre { z-index: 3; }
+  td.vacio { background: var(--empty); color: var(--empty-text); }
+  td.bajo { color: var(--low); font-weight: 700; }
+  td.prom { font-weight: 700; background: #e3ecf6; border-right: 1px solid var(--line); }
+  td.prom.vacio { background: var(--empty); }
+  @media (min-width: 700px) {
+    th.nombre, td.nombre { width: auto; min-width: 240px; max-width: 340px; }
+    #lista { max-width: 640px; margin: 0 auto; }
+  }
+  .version { text-align: center; font-size: .75rem; color: var(--muted); padding: 4px 16px 20px; }
+  .cartel { margin: 0 12px 10px; padding: 12px 14px; border-radius: 12px;
+    background: #e8f1fb; border: 1px solid #bcd0e6; color: #1e3a5f;
+    font-size: .98rem; line-height: 1.35; text-align: center; }
+  .forms { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+  .btnForm { display: flex; align-items: center; justify-content: center; gap: 10px;
+    min-height: 48px; padding: 10px 16px; border-radius: 12px; text-decoration: none;
+    background: var(--head); color: #fff; font-weight: 700; font-size: 1.05rem;
+    border: 2px solid var(--head); box-shadow: 0 2px 6px rgba(47,93,138,.25); }
+  .btnForm .ext { font-size: 1.1rem; opacity: .9; }
+  .btnForm:active { transform: translateY(1px); box-shadow: none; }
+  .btnForm:focus-visible { outline: 3px solid #f59e0b; outline-offset: 2px; }
+  .btnForm.hecho { background: #fff; color: var(--head); box-shadow: none; font-weight: 600; }
+  .thForm { color: #fff; text-decoration: none; }
+  .plazo { margin: 4px 12px 10px; padding: 12px 14px; border-radius: 14px; text-align: center;
+    background: #fff3c4; border: 2px solid #e0b100; color: #5c4400; }
+  .plazo-tit { font-weight: 700; font-size: 1rem; }
+  .plazo-num { font-size: 1.9rem; font-weight: 800; margin: 4px 0 2px; color: #1f2328;
+    font-variant-numeric: tabular-nums; letter-spacing: .5px; }
+  .plazo-num small { font-size: .95rem; font-weight: 700; color: #5c4400; margin: 0 6px 0 2px; }
+  .plazo-pie { font-size: .9rem; }
+  .plazo.urgente { background: #fde2e2; border-color: #dc2626; color: #7f1d1d; }
+  .plazo.urgente .plazo-num, .plazo.urgente .plazo-num small { color: #b91c1c; }
+  .plazo.cerrado { background: #f1f3f5; border-color: #9ca3af; color: #374151; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1 id="titulo">Notas</h1>
+  <div class="sub" id="sub">Cargando…</div>
+  <div class="sub" id="visitas" hidden></div>
+</header>
+
+<div class="plazo" id="plazo" hidden role="timer" aria-live="off">
+  <div class="plazo-tit" id="plazoTit">⏰ Tiempo para entregar las actividades</div>
+  <div class="plazo-num" id="plazoNum"></div>
+  <div class="plazo-pie" id="plazoPie"></div>
+</div>
+
+<div class="tools">
+  <input id="buscar" type="search" placeholder="Escribí tu nombre…" autocomplete="off">
+  <button id="recargar" class="btn" type="button">↻ Actualizar notas</button>
+</div>
+
+<div class="vista">
+  <button id="cambiarVista" class="link" type="button">Ver como tabla</button>
+</div>
+
+<div class="estado" id="estado">Cargando notas…</div>
+
+<div class="cartel" id="cartel" hidden>👆 Selecciona el nombre o busca el nombre del alumno para ver el detalle de las notas</div>
+
+<ul id="lista" hidden></ul>
+
+<div class="wrap" id="vistaTabla" hidden>
+  <table>
+    <thead><tr id="cabecera"></tr></thead>
+    <tbody id="cuerpo"></tbody>
+  </table>
+</div>
+
+<footer class="version" id="version"></footer>
+
+<script>
+/* Versión de la página: se cambia en cada actualización */
+const VERSION = "3.3";
+const FECHA_VERSION = "27/11/2026";
+
+/* ===================== CONFIGURACIÓN =====================
+   Para usar esta página con otra planilla, cambiá estos valores,
+   o abrí la página con parámetros en la dirección, por ejemplo:
+   index.html?id=ID_DE_LA_PLANILLA&hoja=3erTRIM&titulo=4to%20B
+   ========================================================== */
+const CONFIG = {
+  id: "1qvXGwKBeYn4SAvB-3BLu3MGbrLB3IrtPOpoRqjzpeEM", // ID de la planilla (lo que va entre /d/ y /edit en el link)
+  hoja: "3ERTRIM",                                   // nombre de la pestaña
+  nombre: "D",                                       // columna del nombre
+  promedio: "G",                                     // columna del promedio (Nota de carpeta). Dejar "" si no hay
+  tituloPromedio: "Nota de carpeta",
+  columnas: "auto",                                  // "auto" = las columnas entre "ci" y "cf" de la fila 2
+  columnasRespaldo: "J,K,L,M,N,O,P,Q,R,S",               // se usan solo si no se encuentran "ci" y "cf"
+  titulo: "5to C – 3er trimestre",
+  notaBaja: 6,                                       // notas menores a este número se marcan en rojo
+  contador: "",                          // link de la aplicación web de Apps Script (hoja VISTAS). Vacío = sin contador
+  pagina: "5TOC-EP9-3erTRIM",                            // nombre con el que se anotan las visitas en la hoja VISTAS
+  // Fecha límite para entregar (hora de Argentina). Dejar "" para no mostrar el contador
+  fechaLimite: "",
+  // Formularios para completar: nombre de la actividad (fila 1) → link del formulario
+  formularios: {
+    // "act01": "https://forms.gle/..."
+  }
+};
+
+const p = new URLSearchParams(location.search);
+const cfg = {
+  id: p.get("id") || CONFIG.id,
+  hoja: p.get("hoja") || CONFIG.hoja,
+  nombre: p.get("nombre") || CONFIG.nombre,
+  promedio: p.has("promedio") ? p.get("promedio") : CONFIG.promedio,
+  tituloPromedio: p.get("tituloPromedio") || CONFIG.tituloPromedio,
+  columnas: p.get("columnas") || CONFIG.columnas,
+  titulo: p.get("titulo") || CONFIG.titulo,
+  notaBaja: Number(p.get("notaBaja") || CONFIG.notaBaja),
+  contador: CONFIG.contador,
+  pagina: p.get("pagina") || (p.get("hoja") ? (p.get("titulo") || p.get("hoja")) : CONFIG.pagina),
+  formularios: CONFIG.formularios || {}
+};
+const linkForm = et => cfg.formularios[String(et).trim().toLowerCase()] || "";
+
+const $ = id => document.getElementById(id);
+$("version").textContent = "Versión " + VERSION + " · " + FECHA_VERSION;
+$("titulo").textContent = cfg.titulo;
+document.title = cfg.titulo;
+
+// Guardado local (último alumno abierto y vista elegida). Si el navegador no lo permite, se ignora.
+const clave = "notas:" + cfg.id + ":" + cfg.hoja + ":";
+const guardar = (k, v) => { try { v == null ? localStorage.removeItem(clave + k) : localStorage.setItem(clave + k, v); } catch (e) {} };
+const leer = k => { try { return localStorage.getItem(clave + k); } catch (e) { return null; } };
+
+let alumnos = [];      // [{nombre, clave, notas:[{et, v}]}]
+let etiquetas = {};    // columna → nombre a mostrar (fila 1, o fila 2 si la fila 1 está vacía)
+let actividades = [];  // ["act01", ...]
+let abierto = leer("abierto");
+let vista = leer("vista") || (window.innerWidth >= 700 ? "tabla" : "tarjetas");
+let ultimaCarga = 0;
+
+const sinTildes = s => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+const esBaja = v => { const n = parseFloat(String(v).replace(",", ".")); return !isNaN(n) && n < cfg.notaBaja; };
+
+async function cargar() {
+  ultimaCarga = Date.now();
+  $("sub").textContent = "Cargando…";
+  if (!alumnos.length) { $("estado").hidden = false; $("estado").textContent = "Cargando notas…"; }
+
+  try {
+    // Columnas de actividades: fijas, o detectadas entre "ci" y "cf"
+    const columnas = cfg.columnas === "auto" ? await detectarColumnas() : cfg.columnas;
+
+    // headers=1: la fila 1 se usa como encabezado (act01, act02…)
+    const url = baseGviz() + "&headers=1&tq=" +
+      encodeURIComponent("select " + [cfg.nombre, cfg.promedio, columnas].filter(Boolean).join(",")) + "&_=" + Date.now();
+
+    const texto = await (await fetch(url)).text();
+    const datos = JSON.parse(texto.slice(texto.indexOf("{"), texto.lastIndexOf("}") + 1));
+    if (datos.status === "error") throw new Error("error");
+    procesar(datos.table);
+    mostrar();
+  } catch (e) {
+    $("estado").hidden = false;
+    $("estado").textContent = "No se pudieron cargar las notas. Revisá que la planilla esté compartida como “Cualquier persona con el enlace”.";
+    $("sub").textContent = "";
+  }
+}
+
+function baseGviz() {
+  return "https://docs.google.com/spreadsheets/d/" + encodeURIComponent(cfg.id) +
+    "/gviz/tq?tqx=out:json&" + (/^[0-9]+$/.test(cfg.hoja) ? "gid=" : "sheet=") + encodeURIComponent(cfg.hoja);
+}
+
+/* Lee las filas 1 y 2 y devuelve las columnas que están entre "ci" y "cf"
+   (solo las que tienen nombre en la fila 1, por ejemplo act01, act02…) */
+async function detectarColumnas() {
+  try {
+    const texto = await (await fetch(baseGviz() + "&headers=0&range=A1:ZZ2&_=" + Date.now())).text();
+    const t = JSON.parse(texto.slice(texto.indexOf("{"), texto.lastIndexOf("}") + 1)).table;
+    const f1 = t.rows[0].c, f2 = t.rows[1].c;
+    const marca = (fila, i) => valor(fila[i]).toLowerCase();
+    const ini = t.cols.findIndex((_, i) => marca(f2, i) === "ci");
+    const fin = t.cols.findIndex((_, i) => i > ini && marca(f2, i) === "cf");
+    if (ini === -1 || fin === -1) throw new Error("sin ci/cf");
+    const cols = [];
+    etiquetas = {};
+    for (let i = ini + 1; i < fin; i++) {
+      // Todas las columnas entre ci y cf; el nombre sale de la fila 1, y si está vacía, de la fila 2
+      const nombre = valor(f1[i]) || valor(f2[i]);
+      if (!nombre) continue;                 // columna totalmente vacía: se ignora
+      cols.push(t.cols[i].id);
+      etiquetas[t.cols[i].id] = nombre;
+    }
+    if (!cols.length) throw new Error("sin actividades");
+    return cols.join(",");
+  } catch (e) {
+    return CONFIG.columnasRespaldo;
+  }
+}
+
+function valor(c) {
+  if (!c || c.v === null || c.v === undefined || c.v === "") return "";
+  return String(c.f ?? c.v).trim();
+}
+
+function procesar(t) {
+  const desde = cfg.promedio ? 2 : 1;   // columnas de actividades empiezan después del nombre (y del promedio)
+  actividades = t.cols.slice(desde).map(col => (etiquetas[col.id] || col.label || col.id).trim());
+  alumnos = [];
+  // slice(1): se saltea la fila 2 de la planilla
+  t.rows.slice(1).forEach(r => {
+    const c = r.c || [];
+    const nombre = valor(c[0]);
+    if (!nombre) return;
+    alumnos.push({
+      nombre,
+      clave: sinTildes(nombre),
+      promedio: cfg.promedio ? valor(c[1]) : null,
+      notas: actividades.map((et, i) => ({ et, v: valor(c[i + desde]) }))
+    });
+  });
+}
+
+function mostrar() {
+  $("estado").hidden = true;
+  const ahora = new Date().toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" });
+  $("sub").textContent = alumnos.length + " alumnos · actualizado " + ahora;
+  armarLista();
+  armarTabla();
+  aplicarVista();
+  filtrar();
+}
+
+/* ---------- Lista con tarjetas ---------- */
+function armarLista() {
+  const ul = $("lista");
+  ul.innerHTML = "";
+  alumnos.forEach((a, i) => {
+    const entregadas = a.notas.filter(n => n.v !== "").length;
+    const li = document.createElement("li");
+    li.dataset.clave = a.clave;
+
+    const fila = document.createElement("button");
+    fila.type = "button";
+    fila.className = "fila";
+    fila.setAttribute("aria-expanded", "false");
+    fila.setAttribute("aria-controls", "det" + i);
+    fila.innerHTML = '<span class="nom"></span><span class="res"></span><span class="flecha">▼</span>';
+    fila.querySelector(".nom").textContent = a.nombre;
+    fila.querySelector(".res").textContent = entregadas + "/" + a.notas.length;
+
+    const det = document.createElement("div");
+    det.className = "detalle";
+    det.id = "det" + i;
+    det.hidden = true;
+    const grilla = document.createElement("div");
+    grilla.className = "grilla";
+    a.notas.forEach(n => {
+      const d = document.createElement("div");
+      d.className = "nota" + (n.v === "" ? " vacio" : esBaja(n.v) ? " bajo" : "");
+      d.innerHTML = '<span class="et"></span><span class="v"></span>';
+      d.querySelector(".et").textContent = n.et;
+      d.querySelector(".v").textContent = n.v === "" ? "–" : n.v;
+      if (linkForm(n.et)) d.querySelector(".et").textContent = n.et + " 📝";
+      grilla.appendChild(d);
+    });
+    const pie = document.createElement("div");
+    pie.className = "pie";
+    pie.innerHTML = "Entregó <b>" + entregadas + "</b> de <b>" + a.notas.length + "</b> actividades";
+    if (a.promedio !== null) {
+      const pr = document.createElement("div");
+      pr.className = "promedio" + (a.promedio === "" ? " vacio" : esBaja(a.promedio) ? " bajo" : "");
+      pr.innerHTML = '<span class="et"></span><span class="v"></span>';
+      pr.querySelector(".et").textContent = cfg.tituloPromedio;
+      pr.querySelector(".v").textContent = a.promedio === "" ? "–" : a.promedio;
+      det.append(pr);
+    }
+    // Botones grandes para los formularios de las actividades (debajo de la grilla)
+    const forms = document.createElement("div");
+    forms.className = "forms";
+    a.notas.forEach(n => {
+      const lf = linkForm(n.et);
+      if (!lf) return;
+      const hecho = n.v !== "";
+      const b = document.createElement("a");
+      b.className = "btnForm" + (hecho ? " hecho" : "");
+      b.href = lf; b.target = "_blank"; b.rel = "noopener";
+      b.setAttribute("aria-label", "Completar el formulario de " + n.et + " (se abre en una pestaña nueva)");
+      b.innerHTML = '<span class="txt"></span><span class="ext" aria-hidden="true">↗</span>';
+      b.querySelector(".txt").textContent = "📝 Completar " + n.et;
+      b.addEventListener("click", () => registrar("Formulario " + n.et, a.nombre).catch(() => {}));
+      forms.appendChild(b);
+    });
+    det.append(grilla);
+    if (forms.children.length) det.append(forms);
+    det.append(pie);
+
+    fila.addEventListener("click", () => alternar(li));
+    li.append(fila, det);
+    ul.appendChild(li);
+
+    if (abierto && a.nombre === abierto) abrir(li, false);
+  });
+  if (abierto && vista === "tarjetas") {
+    const li = [...ul.children].find(li => li.querySelector(".nom").textContent === abierto);
+    if (li) setTimeout(() => li.scrollIntoView({ block: "start", behavior: "smooth" }), 50);
+  }
+}
+
+function abrir(li, desplazar = true) {
+  for (const otro of $("lista").children) if (otro !== li) cerrar(otro);
+  li.querySelector(".fila").setAttribute("aria-expanded", "true");
+  li.classList.add("abierto");
+  li.querySelector(".detalle").hidden = false;
+  abierto = li.querySelector(".nom").textContent;
+  guardar("abierto", abierto);
+  if (desplazar) {
+    const r = li.getBoundingClientRect();
+    if (r.bottom > window.innerHeight || r.top < 70) li.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }
+}
+function cerrar(li) {
+  li.querySelector(".fila").setAttribute("aria-expanded", "false");
+  li.classList.remove("abierto");
+  li.querySelector(".detalle").hidden = true;
+}
+function alternar(li) {
+  if (li.querySelector(".fila").getAttribute("aria-expanded") === "true") {
+    cerrar(li); abierto = null; guardar("abierto", null);
+  } else abrirYRegistrar(li);
+}
+// Abre la tarjeta y anota en la bitácora qué alumno se vio (solo si no estaba abierta)
+function abrirYRegistrar(li, desplazar = true) {
+  const yaAbierta = li.querySelector(".fila").getAttribute("aria-expanded") === "true";
+  abrir(li, desplazar);
+  if (!yaAbierta) registrar("Tarjeta", li.querySelector(".nom").textContent).catch(() => {});
+}
+
+/* ---------- Tabla ---------- */
+function armarTabla() {
+  const cab = $("cabecera");
+  cab.innerHTML = "";
+  const titulos = ["Alumno", ...(cfg.promedio ? ["Carpeta"] : []), ...actividades];
+  titulos.forEach((t, i) => {
+    const th = document.createElement("th");
+    th.textContent = t;
+    if (i > 0 && linkForm(t)) {
+      const a = document.createElement("a");
+      a.href = linkForm(t); a.target = "_blank"; a.rel = "noopener";
+      a.className = "thForm"; a.textContent = " 📝"; a.title = "Abrir formulario";
+      a.addEventListener("click", () => registrar("Formulario " + t).catch(() => {}));
+      th.appendChild(a);
+    }
+    if (i === 0) th.className = "nombre";
+    cab.appendChild(th);
+  });
+  const cuerpo = $("cuerpo");
+  cuerpo.innerHTML = "";
+  alumnos.forEach(a => {
+    const tr = document.createElement("tr");
+    tr.dataset.clave = a.clave;
+    const td0 = document.createElement("td");
+    td0.className = "nombre";
+    td0.textContent = a.nombre;
+    tr.appendChild(td0);
+    const celdas = a.promedio !== null ? [{ v: a.promedio, prom: true }, ...a.notas] : a.notas;
+    celdas.forEach(n => {
+      const td = document.createElement("td");
+      if (n.v === "") { td.className = "vacio"; td.textContent = "–"; }
+      else { td.textContent = n.v; if (esBaja(n.v)) td.className = "bajo"; }
+      if (n.prom) td.classList.add("prom");
+      tr.appendChild(td);
+    });
+    cuerpo.appendChild(tr);
+  });
+}
+
+/* ---------- Vista, búsqueda y recarga ---------- */
+function aplicarVista() {
+  if (!alumnos.length) return;
+  $("lista").hidden = vista !== "tarjetas";
+  $("cartel").hidden = vista !== "tarjetas";
+  $("vistaTabla").hidden = vista !== "tabla";
+  $("cambiarVista").textContent = vista === "tabla" ? "Ver por alumno" : "Ver como tabla";
+}
+
+function filtrar() {
+  const q = sinTildes($("buscar").value);
+  const visibles = [];
+  for (const el of [...$("lista").children, ...$("cuerpo").children]) {
+    el.hidden = q && !el.dataset.clave.includes(q);
+  }
+  // Si la búsqueda deja un solo alumno, se abre su tarjeta
+  if (q) {
+    const quedan = [...$("lista").children].filter(li => !li.hidden);
+    if (quedan.length === 1) abrirYRegistrar(quedan[0], false);
+  }
+}
+
+$("buscar").addEventListener("input", filtrar);
+$("recargar").addEventListener("click", () => {
+  cargar();
+  // Registra el toque en "Actualizar notas" en la hoja VISTAS (renglón aparte)
+  registrar("Actualizar notas").catch(() => {});
+});
+$("cambiarVista").addEventListener("click", () => {
+  vista = vista === "tabla" ? "tarjetas" : "tabla";
+  guardar("vista", vista);
+  aplicarVista();
+});
+// Recarga sola al volver a la pestaña o a la app (si pasó más de 1 minuto)
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && Date.now() - ultimaCarga > 60000) cargar();
+});
+cargar();
+
+/* ---------- Contador regresivo hasta la fecha límite ---------- */
+(function () {
+  if (!CONFIG.fechaLimite) return;
+  const limite = new Date(CONFIG.fechaLimite);
+  if (isNaN(limite)) return;
+  const dias = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+  const p2 = n => String(n).padStart(2, "0");
+  // Fecha y hora del cierre mostradas en hora de Argentina
+  const ar = new Date(limite.getTime() - 3 * 3600 * 1000);
+  const cierre = dias[ar.getUTCDay()] + " " + p2(ar.getUTCDate()) + "/" + p2(ar.getUTCMonth() + 1) +
+    " a las " + p2(ar.getUTCHours()) + ":" + p2(ar.getUTCMinutes());
+  $("plazo").hidden = false;
+  function tic() {
+    const ms = limite - Date.now();
+    if (ms <= 0) {
+      $("plazo").className = "plazo cerrado";
+      $("plazoTit").textContent = "⛔ Terminó el plazo de entrega";
+      $("plazoNum").textContent = "";
+      $("plazoPie").textContent = "Cerró el " + cierre + " hs";
+      return;
+    }
+    const s = Math.floor(ms / 1000);
+    const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), seg = s % 60;
+    $("plazo").className = "plazo" + (h < 6 ? " urgente" : "");
+    $("plazoNum").innerHTML = h + "<small>h</small>" + p2(m) + "<small>min</small>" + p2(seg) + "<small>s</small>";
+    $("plazoPie").textContent = "Cierra el " + cierre + " hs";
+    setTimeout(tic, 1000 - (Date.now() % 1000) + 5);
+  }
+  tic();
+})();
+
+/* ---------- Registro en la hoja VISTAS: un renglón por cada visita o toque en "Actualizar notas" ---------- */
+function registrar(accion, alumno) {
+  if (!cfg.contador) return Promise.resolve(null);
+  const disp = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? "Celular" : "Computadora";
+  return fetch(cfg.contador + "?pagina=" + encodeURIComponent(cfg.pagina) +
+    "&accion=" + encodeURIComponent(accion) + "&disp=" + encodeURIComponent(disp) +
+    (alumno ? "&alumno=" + encodeURIComponent(alumno) : ""));
+}
+
+/* ---------- Contador de visitas (suma 1 en la hoja VISTAS cada vez que se abre la página) ---------- */
+if (cfg.contador) {
+  registrar("Visita")
+    .then(r => r.json())
+    .then(d => {
+      if (d && d.visitas != null) {
+        $("visitas").textContent = "👁 " + Number(d.visitas).toLocaleString("es-AR") + " visitas";
+        $("visitas").hidden = false;
+      }
+    })
+    .catch(() => {});
+}
+</script>
+</body>
+</html>
